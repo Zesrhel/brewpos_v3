@@ -1,7 +1,10 @@
 <?php
+// Database Configuration Template
+
 session_start();
+
 $DB_HOST = '127.0.0.1';
-$DB_NAME = 'brewpos_v3';  
+$DB_NAME = 'brewpos_v3';
 $DB_USER = 'root';
 $DB_PASS = '';
 
@@ -18,7 +21,7 @@ try {
             <p>The database 'brewpos_v3' does not exist. Please:</p>
             <ol>
                 <li>Create a database named 'brewpos_v3' in phpMyAdmin</li>
-                <li>Import the SQL structure from init_db.sql</li>
+                <li>Import the SQL structure from brewpos_v3.sql</li>
                 <li>Refresh this page</li>
             </ol>
             <p>Error details: " . $e->getMessage() . "</p>
