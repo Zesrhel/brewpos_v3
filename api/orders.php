@@ -24,6 +24,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             INDEX idx_product_id (product_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
+        // Validate stock levels BEFORE starting transaction
+        foreach ($input['items'] as $item) {
+            $product_id = $item['product_id'];
+            $requested_quantity = (int)$item['quantity'];
+            
+            // Check current stock level
+            $stock_check = $pdo->prepare("
+                SELECT COALESCE(quantity, 0) as current_stock 
+                FROM inventory 
+                WHERE product_id = ?
+            ");
+            $stock_check->execute([$product_id]);
+            $current_stock = $stock_check->fetchColumn();
+            
+            if ($current_stock < $requested_quantity) {
+                echo json_encode([
+                    'error' => "Insufficient stock for {$item['name']}. Available: {$current_stock}, Requested: {$requested_quantity}"
+                ]);
+                exit;
+            }
+        }
+        
+        // Validate raw materials BEFORE starting transaction
+        $total_drinks = 0;
+        $small_cups = 0;
+        $medium_cups = 0;
+        $large_cups = 0;
+        
+        foreach ($input['items'] as $item) {
+            $quantity = (int)$item['quantity'];
+            $total_drinks += $quantity;
+            
+            $cup_size = strtolower($item['cup_size'] ?? 'medium');
+            if ($cup_size === 'small') {
+                $small_cups += $quantity;
+            } elseif ($cup_size === 'large') {
+                $large_cups += $quantity;
+            } else {
+                $medium_cups += $quantity;
+            }
+        }
+        
+        // Check raw materials availability
+        $raw_materials_check = [
+            ['name' => 'Tea Cups (Small)', 'needed' => $small_cups],
+            ['name' => 'Tea Cups (Medium)', 'needed' => $medium_cups],
+            ['name' => 'Tea Cups (Large)', 'needed' => $large_cups],
+        ];
+        
+        foreach ($raw_materials_check as $material) {
+            if ($material['needed'] <= 0) continue;
+            
+            $check = $pdo->prepare("SELECT COALESCE(quantity, 0) FROM inventory_items WHERE item_name = ?");
+            $check->execute([$material['name']]);
+            $available = $check->fetchColumn();
+            
+            if ($available < $material['needed']) {
+                echo json_encode([
+                    'error' => "Insufficient raw material: {$material['name']}. Available: {$available}, Needed: {$material['needed']}"
+                ]);
+                exit;
+            }
+        }
+        
         $pdo->beginTransaction();
         
         // Generate order number
@@ -48,29 +112,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         
         $order_id = $pdo->lastInsertId();
-        
-        // Validate stock levels before processing order
-        foreach ($input['items'] as $item) {
-            $product_id = $item['product_id'];
-            $requested_quantity = (int)$item['quantity'];
-            
-            // Check current stock level
-            $stock_check = $pdo->prepare("
-                SELECT COALESCE(quantity, 0) as current_stock 
-                FROM inventory 
-                WHERE product_id = ?
-            ");
-            $stock_check->execute([$product_id]);
-            $current_stock = $stock_check->fetchColumn();
-            
-            if ($current_stock < $requested_quantity) {
-                $pdo->rollBack();
-                echo json_encode([
-                    'error' => "Insufficient stock for {$item['name']}. Available: {$current_stock}, Requested: {$requested_quantity}"
-                ]);
-                exit;
-            }
-        }
         
         // Insert order items and update inventory
         foreach ($input['items'] as $item) {
@@ -132,14 +173,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Deduct ingredients if there are drinks
         if ($total_drinks > 0) {
-            // Deduct straws and lids (1 set per drink)
-            $straws_lids_stmt = $pdo->prepare("
-                UPDATE inventory_items 
-                SET quantity = quantity - ? 
-                WHERE item_name = 'Straw and lids'
-            ");
-            $straws_lids_stmt->execute([$total_drinks]);
-            
             // Deduct cups based on size
             if ($small_cups > 0) {
                 $small_cups_stmt = $pdo->prepare("
@@ -167,33 +200,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $large_cups_stmt->execute([$large_cups]);
             }
-            
-            // Deduct milk (assuming 250ml per drink)
-            $milk_ml = $total_drinks * 250;
-            $milk_stmt = $pdo->prepare("
-                UPDATE inventory_items 
-                SET quantity = quantity - ? 
-                WHERE item_name = 'Milk'
-            ");
-            $milk_stmt->execute([$milk_ml]);
-            
-            // Deduct tapioca pearls (assuming 50g per drink)
-            $tapioca_grams = $total_drinks * 50;
-            $tapioca_stmt = $pdo->prepare("
-                UPDATE inventory_items 
-                SET quantity = quantity - ? 
-                WHERE item_name = 'Tapioca Pearls'
-            ");
-            $tapioca_stmt->execute([$tapioca_grams / 1000]); // Convert grams to kg
-            
-            // Deduct brown sugar syrup (assuming 30ml per drink)
-            $syrup_ml = $total_drinks * 30;
-            $syrup_stmt = $pdo->prepare("
-                UPDATE inventory_items 
-                SET quantity = quantity - ? 
-                WHERE item_name = 'Brown Sugar Syrup'
-            ");
-            $syrup_stmt->execute([$syrup_ml / 1000]); // Convert ml to liters
         }
         
         $pdo->commit();

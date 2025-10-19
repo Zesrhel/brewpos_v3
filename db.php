@@ -1,7 +1,7 @@
 <?php
 session_start();
 $DB_HOST = '127.0.0.1';
-$DB_NAME = 'brewpos_v3';  // Make sure this matches your database name
+$DB_NAME = 'brewpos_v3';  
 $DB_USER = 'root';
 $DB_PASS = '';
 
@@ -11,7 +11,7 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 } catch (Exception $e) {
-    // More user-friendly error message
+
     if (strpos($e->getMessage(), 'Unknown database') !== false) {
         die("<div style='padding: 20px; font-family: Arial;'>
             <h3>Database Connection Error</h3>

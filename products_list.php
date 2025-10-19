@@ -58,7 +58,7 @@ foreach ($products as $product) {
             padding: 20px;
         }
         .header-container {
-            background: linear-gradient(135deg, #6f42c1 0%, #d63384 100%);
+            background: #6f42c1;
             color: white;
             border-radius: 10px;
             padding: 20px;
@@ -85,14 +85,14 @@ foreach ($products as $product) {
             color: #495057;
         }
         .btn-primary {
-            background: linear-gradient(to right, #6f42c1, #d63384);
+            background: #6f42c1;
             border: none;
             border-radius: 8px;
             padding: 10px 20px;
             font-weight: 600;
         }
         .btn-primary:hover {
-            background: linear-gradient(to right, #5a32a3, #b52a6f);
+            background: #5a32a3;
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
@@ -101,8 +101,12 @@ foreach ($products as $product) {
             padding: 10px 20px;
             font-weight: 600;
         }
-        .stock-low {
+        .stock-critical {
             color: #dc3545;
+            font-weight: 600;
+        }
+        .stock-low {
+            color: #ffc107;
             font-weight: 600;
         }
         .stock-available {
@@ -253,23 +257,26 @@ foreach ($products as $product) {
                         <tbody>
                             <?php foreach ($products as $product): 
                                 $status = 'In Stock';
-                                $status_class = 'bg-success';
+                                $status_class = 'stock-available';
                                 if ($product['stock_quantity'] <= 0) {
                                     $status = 'Out of Stock';
-                                    $status_class = 'bg-danger';
+                                    $status_class = 'stock-critical';
+                                } elseif ($product['stock_quantity'] < 5) {
+                                    $status = 'Critical';
+                                    $status_class = 'stock-critical';
                                 } elseif ($product['stock_quantity'] < 10) {
                                     $status = 'Low Stock';
-                                    $status_class = 'bg-warning';
+                                    $status_class = 'stock-low';
                                 }
                             ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($product['sku']); ?></td>
                                 <td><?php echo htmlspecialchars($product['name']); ?></td>
                                 <td>₱<?php echo number_format($product['price'], 2); ?></td>
-                                <td class="<?php echo $product['stock_quantity'] <= 0 ? 'stock-low' : 'stock-available'; ?>">
+                                <td class="<?php echo $status_class; ?>">
                                     <?php echo $product['stock_quantity']; ?>
                                 </td>
-                                <td><span class="badge <?php echo $status_class; ?>"><?php echo $status; ?></span></td>
+                                <td><span class="<?php echo $status_class; ?>"><?php echo $status; ?></span></td>
                                 <td class="action-buttons">
                                     <a href="product_form.php?id=<?php echo $product['id']; ?>" class="btn btn-sm btn-outline-secondary">
                                         <i class="fas fa-edit"></i> Edit

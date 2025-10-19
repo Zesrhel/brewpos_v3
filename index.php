@@ -11,29 +11,139 @@ if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     :root{
-      --bg:#fff7f0; --accent:#f7d7c4; --accent-2:#cfead8; --text:#6b4a35;
+      --primary:#7a4b2a;
+      --success:#28a745;
+      --info:#17a2b8;
+      --warning:#ffc107;
+      --danger:#dc3545;
+      --light-bg:#f8f9fa;
+      --card-bg:#ffffff;
     }
-    body { background: linear-gradient(180deg,#fff,#fff7f0); color:var(--text); padding:18px; }
-    .pos-card { border-radius:14px; box-shadow:0 8px 24px rgba(74,50,37,0.06); }
-    .product-card { cursor:pointer; border-radius:12px; transition:transform .07s; background:linear-gradient(180deg,#fff,#fff7ea); }
+    body { 
+      background: #f8f9fa; 
+      color:#333; 
+      padding:20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .pos-card { 
+      border-radius:12px; 
+      box-shadow:0 2px 8px rgba(0,0,0,0.08);
+      background: var(--card-bg);
+      border: 1px solid #e9ecef;
+    }
+    .product-card { 
+      cursor:pointer; 
+      border-radius:10px; 
+      transition:all .15s ease;
+      background: #ffffff;
+      border: 2px solid #e9ecef;
+      padding: 12px;
+    }
+    .product-card:hover{ 
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(122,75,42,0.15);
+      transform: translateY(-2px);
+    }
     .product-card:active{ transform:scale(.98); }
     .product-card.disabled { 
       cursor:not-allowed; 
-      opacity:0.6; 
-      background:linear-gradient(180deg,#f8f9fa,#e9ecef);
+      opacity:0.5; 
+      background:#f8f9fa;
       border:2px dashed #dee2e6;
     }
+    .product-card.disabled:hover{ 
+      transform:none;
+      box-shadow: none;
+      border-color: #dee2e6;
+    }
     .product-card.disabled:active{ transform:none; }
-    .btn-cta { background:var(--text); color:white; border-radius:12px; }
-    .logo { font-weight:800; color:#7a4b2a; font-size:20px; }
-    .small-muted { font-size:13px; color:#7a6a65; }
-    .receipt { font-family:monospace; white-space:pre-wrap; }
-    .rounded-input { border-radius:10px; }
-    .badge-stock { background:#fff3; color:var(--text); border-radius:8px; padding:4px 8px; font-weight:600; }
+    .btn-cta { 
+      background:var(--primary); 
+      color:white; 
+      border-radius:8px;
+      border: none;
+      font-weight: 600;
+      padding: 12px 24px;
+    }
+    .btn-cta:hover {
+      background:#5a3620;
+      color: white;
+    }
+    .logo { 
+      font-weight:800; 
+      color:var(--primary); 
+      font-size:22px;
+      letter-spacing: -0.5px;
+    }
+    .small-muted { font-size:13px; color:#6c757d; }
+    .receipt { font-family:monospace; white-space:pre-wrap; font-size: 12px; }
+    .rounded-input { border-radius:8px; }
+    .list-group-item {
+      border-radius: 8px !important;
+      margin-bottom: 8px;
+      border: 1px solid #e9ecef;
+    }
+    /* Lock Screen Styles */
+    #lockScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #lockScreen.active {
+      display: flex;
+    }
+    .lock-content {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .lock-icon {
+      font-size: 64px;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+    .lock-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+    .lock-subtitle {
+      color: #6c757d;
+      margin-bottom: 30px;
+    }
     @media print { body *{visibility:hidden} #printable, #printable *{visibility:visible} #printable{position:absolute;left:0;top:0;width:100%} }
   </style>
 </head>
 <body>
+<!-- Lock Screen Overlay -->
+<div id="lockScreen">
+  <div class="lock-content">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">System Locked</div>
+    <div class="lock-subtitle">Enter your password to unlock</div>
+    <div id="lockError" class="alert alert-danger d-none mb-3"></div>
+    <form id="unlockForm">
+      <div class="mb-3">
+        <input type="password" id="unlockPassword" class="form-control rounded-input" placeholder="Enter password" required autofocus>
+      </div>
+      <div class="d-grid">
+        <button type="submit" class="btn btn-cta">Unlock</button>
+      </div>
+    </form>
+  </div>
+</div>
 <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div class="logo">🧋 BrewPOS — Tiger Bubble Tea</div>
@@ -42,6 +152,7 @@ if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
       <a href="sales.php" class="btn btn-sm btn-outline-success me-2">Sales</a>
       <a href="products_list.php" class="btn btn-sm btn-outline-secondary me-2">Products</a> 
       <a href="inventory.php" class="btn btn-sm btn-outline-info me-2">Inventory</a>
+      <a href="stock_in.php" class="btn btn-sm btn-outline-primary me-2">Stock In</a>
       <a href="logout.php" class="btn btn-sm btn-outline-danger">Logout</a>
     </div>
   </div>
@@ -68,7 +179,7 @@ if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
         <div class="mb-2 small-muted">
           <div class="d-flex justify-content-between"><div>Subtotal:</div><div id="subtotal">0.00</div></div>
           <div class="d-flex justify-content-between"><div>Tax (12%):</div><div id="tax">0.00</div></div>
-          <div class="d-flex justify-content-between fw-bold"><div>Total:</div><div id="total">0.00</div></div>
+          <div class="d-flex justify-content-between fw-bold"><div>Total (Tax Inclusive):</div><div id="total">0.00</div></div>
         </div>
 
         <div class="mb-2">
@@ -161,15 +272,7 @@ if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-/*
-  JS wiring added:
-  - Click product to open modal (size/sugar/qty)
-  - Add to cart, render cart, inc/dec qty
-  - Complete sale -> POST to api/orders.php -> on success show receipt and reload lists
-  - Show/hide GCash ref input
-  - Search filter for products
-  Minimal changes only: all HTML and CSS preserved.
-*/
+
 
 const apiBase = 'api';
 let products = [], cart = [], selectedProduct = null;
@@ -277,9 +380,9 @@ $('#modalAddBtn').addEventListener('click', ()=>{
 function renderCart(){
   const list = $('#cart');
   list.innerHTML = '';
-  let subtotal = 0;
+  let total = 0;
   cart.forEach((c, idx) => {
-    subtotal += c.total_price;
+    total += c.total_price;
     const li = document.createElement('li');
     li.className = 'list-group-item d-flex justify-content-between align-items-start';
     li.innerHTML = `
@@ -297,10 +400,14 @@ function renderCart(){
       </div>`;
     list.appendChild(li);
   });
+  
+  // Tax is included in the price (tax-inclusive pricing)
+  // Calculate the tax component from the total (total / 1.12 * 0.12)
+  const subtotal = total / 1.12;
+  const tax = total - subtotal;
+  
   $('#subtotal').innerText = format(subtotal);
-  const tax = subtotal * 0.12;
-  $('#tax').innerText = format(tax);
-  const total = subtotal + tax;
+  $('#tax').innerText = format(tax) + ' (included)';
   $('#total').innerText = format(total);
   
   // Update change calculation when cart changes
@@ -392,7 +499,9 @@ $('#payBtn').addEventListener('click', async ()=>{
 
   // prepare payload
   const subtotal = parseFloat($('#subtotal').innerText) || 0;
-  const tax = parseFloat($('#tax').innerText) || 0;
+  // Extract tax value (remove " (included)" text if present)
+  const taxText = $('#tax').innerText.replace(' (included)', '').trim();
+  const tax = parseFloat(taxText) || 0;
   const amount_received = payment_type === 'cash' ? parseFloat($('#amount_received').value) : total;
   const change = payment_type === 'cash' ? amount_received - total : 0;
   const gcash_ref = $('#gcash_ref').value || null;
@@ -479,9 +588,136 @@ $('#search').addEventListener('input', (e)=>{
 function tick(){ document.getElementById('clock').innerText = new Date().toLocaleString(); }
 tick(); setInterval(tick, 1000);
 
+// ========== AUTO LOCK SYSTEM ==========
+let inactivityTimer = null;
+const INACTIVITY_TIMEOUT = 30000; // 30 seconds in milliseconds
+let isLocked = false;
+
+// Events that count as user activity
+const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+
+// Reset the inactivity timer
+function resetInactivityTimer() {
+  // Don't reset if system is locked
+  if (isLocked) return;
+  
+  // Clear existing timer
+  if (inactivityTimer) {
+    clearTimeout(inactivityTimer);
+  }
+  
+  // Set new timer
+  inactivityTimer = setTimeout(() => {
+    lockSystem();
+  }, INACTIVITY_TIMEOUT);
+}
+
+// Lock the system
+function lockSystem() {
+  isLocked = true;
+  const lockScreen = document.getElementById('lockScreen');
+  lockScreen.classList.add('active');
+  
+  // Clear the password field
+  document.getElementById('unlockPassword').value = '';
+  
+  // Focus on password field
+  setTimeout(() => {
+    document.getElementById('unlockPassword').focus();
+  }, 100);
+  
+  // Clear the timer
+  if (inactivityTimer) {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = null;
+  }
+}
+
+// Unlock the system
+async function unlockSystem(password) {
+  try {
+    const res = await fetch('api/unlock.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ password })
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      // Unlock successful
+      isLocked = false;
+      document.getElementById('lockScreen').classList.remove('active');
+      document.getElementById('lockError').classList.add('d-none');
+      document.getElementById('unlockPassword').value = '';
+      
+      // Restart the inactivity timer
+      resetInactivityTimer();
+    } else {
+      // Show error
+      const errorDiv = document.getElementById('lockError');
+      errorDiv.textContent = data.error || 'Invalid password';
+      errorDiv.classList.remove('d-none');
+      
+      // Clear password field
+      document.getElementById('unlockPassword').value = '';
+      document.getElementById('unlockPassword').focus();
+    }
+  } catch (err) {
+    console.error('Unlock error:', err);
+    const errorDiv = document.getElementById('lockError');
+    errorDiv.textContent = 'An error occurred. Please try again.';
+    errorDiv.classList.remove('d-none');
+  }
+}
+
+// Initialize auto-lock system when DOM is ready
+function initAutoLock() {
+  // Handle unlock form submission
+  document.getElementById('unlockForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const password = document.getElementById('unlockPassword').value;
+    if (password) {
+      unlockSystem(password);
+    }
+  });
+
+  // Attach activity listeners
+  activityEvents.forEach(event => {
+    document.addEventListener(event, resetInactivityTimer, true);
+  });
+
+  // Start the inactivity timer when page loads
+  resetInactivityTimer();
+
+  // Prevent activity events from working when locked
+  document.addEventListener('keydown', (e) => {
+    if (isLocked) {
+      // Only allow interaction with the unlock form
+      const unlockForm = document.getElementById('unlockForm');
+      if (!unlockForm.contains(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  }, true);
+
+  document.addEventListener('click', (e) => {
+    if (isLocked) {
+      // Only allow interaction with the unlock form
+      const unlockForm = document.getElementById('unlockForm');
+      if (!unlockForm.contains(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  }, true);
+}
+
 // init
 window.addEventListener('DOMContentLoaded', ()=>{
   loadProducts();
+  initAutoLock(); // Initialize auto-lock system
 });
 </script>
 </body></html>

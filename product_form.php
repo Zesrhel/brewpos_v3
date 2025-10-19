@@ -2,20 +2,24 @@
 require_once 'db.php';
 if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 $id = $_GET['id'] ?? null;
-$name=''; $sku=''; $price=''; $quantity=0;
+$name=''; $sku=''; $price='';
 $error = '';
 
 if ($id) {
-  $stmt = $pdo->prepare('SELECT p.*, COALESCE(i.quantity,0) as quantity FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.id=?');
-  $stmt->execute([$id]); $r = $stmt->fetch(PDO::FETCH_ASSOC);
-  if ($r) { $name=$r['name']; $sku=$r['sku']; $price=$r['price']; $quantity=$r['quantity']; }
+  $stmt = $pdo->prepare('SELECT * FROM products WHERE id=?');
+  $stmt->execute([$id]);
+  $r = $stmt->fetch(PDO::FETCH_ASSOC);
+  if ($r) {
+    $name = $r['name'];
+    $sku = $r['sku'];
+    $price = $r['price'];
+  }
 }
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
   $name = trim($_POST['name'] ?? '');
   $sku = trim($_POST['sku'] ?? '');
   $price = $_POST['price'] ?? '0';
-  $quantity = intval($_POST['quantity'] ?? 0);
 
   if ($sku === '' || $name === '') {
     $error = 'Product SKU and Name are required.';
@@ -26,29 +30,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       if ($id) {
         // Update existing product
         $pdo->prepare('UPDATE products SET sku=?, name=?, price=? WHERE id=?')->execute([$sku,$name,$price,$id]);
-        
-        // Check if inventory record exists
-        $check = $pdo->prepare('SELECT COUNT(*) FROM inventory WHERE product_id = ?');
-        $check->execute([$id]);
-        $exists = $check->fetchColumn();
-        
-        if ($exists) {
-          // Update existing inventory
-          $pdo->prepare('UPDATE inventory SET quantity = ? WHERE product_id = ?')->execute([$quantity, $id]);
-        } else {
-          // Insert new inventory
-          $pdo->prepare('INSERT INTO inventory (product_id, quantity) VALUES (?, ?)')->execute([$id, $quantity]);
-        }
-        
       } else {
         // Insert new product
         $pdo->prepare('INSERT INTO products (sku, name, price) VALUES (?, ?, ?)')->execute([$sku, $name, $price]);
-        $pid = $pdo->lastInsertId();
-        
-        // Insert inventory for new product
-        $pdo->prepare('INSERT INTO inventory (product_id, quantity) VALUES (?, ?)')->execute([$pid, $quantity]);
       }
-      
+
       $pdo->commit();
       header('Location: products_list.php');
       exit;
@@ -58,8 +44,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       if ($e->getCode() === '23000') {
         if (strpos($e->getMessage(), 'sku')) {
           $error = 'SKU already exists. Please use a unique SKU.';
-        } else if (strpos($e->getMessage(), 'product_id')) {
-          $error = 'Inventory error: Product already has inventory record.';
         } else {
           $error = 'Database constraint error: ' . $e->getMessage();
         }
@@ -90,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       </div>
       <div class="mb-2"><label class="form-label">Name</label><input name="name" class="form-control" placeholder="Name" value="<?php echo htmlspecialchars($name); ?>" required/></div>
       <div class="mb-2"><label class="form-label">Price</label><input name="price" type="number" step="0.01" class="form-control" placeholder="Price" value="<?php echo htmlspecialchars($price); ?>" required/></div>
-      <div class="mb-2"><label class="form-label">Stock qty</label><input name="quantity" type="number" class="form-control" placeholder="Stock qty" value="<?php echo htmlspecialchars($quantity); ?>" required/></div>
       <div class="d-flex justify-content-between"><a href="products_list.php" class="btn btn-outline-secondary">Cancel</a><button class="btn btn-primary">Save</button></div>
     </form>
   </div>

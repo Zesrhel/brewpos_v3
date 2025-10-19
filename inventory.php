@@ -76,51 +76,115 @@ $products = $pdo->query('SELECT id, name FROM products ORDER BY name')->fetchAll
         padding: 20px;
     }
     .header-container {
-        background: linear-gradient(135deg, #6f42c1 0%, #d63384 100%);
+        background: #17a2b8;
         color: white;
-        border-radius: 10px;
-        padding: 20px;
+        border-radius: 12px;
+        padding: 25px 30px;
         margin-bottom: 25px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(23,162,184,0.2);
+        border: none;
     }
     .card {
         border-radius: 12px;
-        box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
         margin-bottom: 20px;
+        background: #ffffff;
     }
     .card-header {
-        background-color: #6f42c1;
-        color: white;
+        background-color: #ffffff;
+        color: #333;
+        border-bottom: 2px solid #17a2b8;
         border-radius: 12px 12px 0 0 !important;
-        padding: 15px 20px;
-        font-weight: 600;
+        padding: 18px 24px;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    .card-body {
+        padding: 24px;
+    }
+    .table {
+        margin-bottom: 0;
     }
     .table th {
-        background-color: #e9ecef;
+        background-color: #f8f9fa;
         border-top: none;
+        border-bottom: 2px solid #dee2e6;
         font-weight: 600;
         color: #495057;
+        padding: 12px;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+    .table td {
+        padding: 14px 12px;
+        vertical-align: middle;
+    }
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
     }
     .btn-primary {
-        background: linear-gradient(to right, #6f42c1, #d63384);
+        background: #17a2b8;
         border: none;
         border-radius: 8px;
-        padding: 10px 20px;
+        padding: 10px 24px;
         font-weight: 600;
+        transition: all 0.2s ease;
     }
     .btn-primary:hover {
-        background: linear-gradient(to right, #5a32a3, #b52a6f);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        background: #138496;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(23,162,184,0.3);
     }
-    .btn-outline-secondary {
+    .btn-success {
         border-radius: 8px;
         padding: 10px 20px;
         font-weight: 600;
+        transition: all 0.2s ease;
     }
-    .critical {background-color: #ffebee;}
-    .low {background-color: #fff8e1;}
+    .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(40,167,69,0.3);
+    }
+    .btn-light {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        border: 2px solid #ffffff;
+    }
+    .btn-light:hover {
+        background: #ffffff;
+        border-color: #ffffff;
+    }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        padding: 10px 14px;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #17a2b8;
+        box-shadow: 0 0 0 0.2rem rgba(23,162,184,0.15);
+    }
+    .form-control-sm {
+        padding: 6px 10px;
+        font-size: 0.9rem;
+    }
+    .status-critical { 
+        color: #dc3545; 
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    .status-low { 
+        color: #fd7e14; 
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    .status-normal { 
+        color: #28a745; 
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
 </style>
 </head><body>
 <div class="container my-4">
@@ -131,6 +195,7 @@ $products = $pdo->query('SELECT id, name FROM products ORDER BY name')->fetchAll
         <p class="mb-0 mt-2">Track and update stock levels</p>
       </div>
       <div>
+        <a href="stock_in.php" class="btn btn-success me-2"><i class="fas fa-box-open me-1"></i> Stock In</a>
         <a href="index.php" class="btn btn-light"><i class="fas fa-arrow-left me-1"></i> Back to POS</a>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal"><i class="fas fa-plus me-1"></i> Add New Item</button>
       </div>
@@ -170,31 +235,30 @@ $products = $pdo->query('SELECT id, name FROM products ORDER BY name')->fetchAll
       <?php foreach($items as $it): 
         // Determine status based on quantity
         $status = 'Normal';
-        $statusClass = '';
+        $statusClass = 'status-normal';
         if ($it['quantity'] <= 0) {
             $status = 'Out of Stock';
-            $statusClass = 'critical';
+            $statusClass = 'status-critical';
         } elseif ($it['quantity'] < 5) {
             $status = 'Critical';
-            $statusClass = 'critical';
+            $statusClass = 'status-critical';
         } elseif ($it['quantity'] < 10) {
             $status = 'Low';
-            $statusClass = 'low';
+            $statusClass = 'status-low';
         }
       ?>
-        <tr class="<?php echo $statusClass; ?>">
+        <tr>
           <form method="post">
           <td><?php echo htmlspecialchars($it['item_name']); ?></td>
           <?php if ($columnCheck): ?>
             <td><?php echo htmlspecialchars($it['product_name'] ?? 'N/A'); ?></td>
           <?php endif; ?>
           <td>
-            <input name="quantity" type="number" step="0.01" min="0" class="form-control form-control-sm" value="<?php echo $it['quantity']; ?>" required/>
+            <input name="quantity" type="number" step="<?php echo ($it['unit'] === 'pcs' || $it['unit'] === 'pieces') ? '1' : '0.01'; ?>" min="0" class="form-control form-control-sm" value="<?php echo ($it['unit'] === 'pcs' || $it['unit'] === 'pieces') ? (int)$it['quantity'] : $it['quantity']; ?>" required/>
           </td>
           <td><?php echo htmlspecialchars($it['unit']); ?></td>
           <td>
-            <span class="badge 
-              <?php echo $statusClass === 'critical' ? 'bg-danger' : ($statusClass === 'low' ? 'bg-warning' : 'bg-success'); ?>">
+            <span class="<?php echo $statusClass; ?>">
               <?php echo $status; ?>
             </span>
           </td>
